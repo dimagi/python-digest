@@ -1,0 +1,33 @@
+Visit http://bitbucket.org/akoha/python-digest/ for further information.
+
+This library was written to aid in the implementation of HTTP Digest Authentication for
+Python web frameworks.
+
+It may be used as follows:
+
+>>> import time
+>>> import python_digest
+>>>
+>>> secret = 'b_wy%h=ts0ii3g0ulqbx8q%w(72zh%4hslu7js&(^q+_s49jj-'
+>>>
+>>> www_authenticate_header = python_digest.build_digest_challenge(time.time(), secret, 'API', 'ADAC33E813C0CE930F4744C90E02396E', False)
+>>> www_authenticate_header
+'Digest nonce="1263192256.57:c6b7a75bf9a3b925cb01f91d298b7204", realm="API", algorithm="MD5", opaque="ADAC33E813C0CE930F4744C90E02396E", qop="auth", stale="false"'
+>>>
+>>> # Send the 'WWW-Authenticate' header to the client
+>>> # ...
+>>>
+>>> # Receive the 'Authorization' header from the client
+>>> http_authorization_header = 'Digest username="erik", realm="API", nonce="1263174643.19:7f936796976b235aa92ea05333d36483", uri="/site_media/static/pinax/css/facebox.css", algorithm=MD5, response="18824d23aa8649c6231978d3e8532528", opaque="ADAC33E813C0CE930F4744C90E02396E", qop=auth, nc=00000004, cnonce="54a4b93a966e882b"'
+>>> digest_response = python_digest.parse_digest_credentials(http_authorization_header)
+>>> python_digest.validate_nonce(digest_response.nonce, secret)
+True
+>>> expected_request_digest = python_digest.calculate_request_digest('GET', digest_response, python_digest.calculate_partial_digest('erik', 'API', 'test'))
+>>> expected_request_digest == digest_response.response
+True
+
+You may choose to only accept nonces that have been generated within some time period - 
+get_nonce_timestamp() may be used to extract the timestamp from the client-provided nonce.
+
+You may also choose to enforce the uniqueness of nonce-counts by storing the last seen nonce
+count in (for example) a database and verifying it after checking the request-digest.
