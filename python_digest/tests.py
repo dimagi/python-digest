@@ -48,6 +48,22 @@ class PythonDigestTests(unittest.TestCase):
         self.assertFalse(validate_nonce(nonce[:-1], 'secret'))
         self.assertEqual(timestamp, get_nonce_timestamp(nonce))
 
+    def test_parse_digest_challenge(self):
+        challenge_header = 'Digest nonce="1263312775.17:7a4267d73fb67fe9da897bb5445153ae", ' \
+            'realm="API", algorithm="MD5", opaque="38A924C1874E52F9A379BCA9F64D04F6", ' \
+            'qop="auth", stale="false"'
+        self.assertTrue(is_digest_challenge(challenge_header))
+        self.assertFalse(is_digest_challenge('Basic realm="API"'))
+        digest_challenge = parse_digest_challenge(challenge_header)
+        
+        self.assertEqual('1263312775.17:7a4267d73fb67fe9da897bb5445153ae',
+                         digest_challenge.nonce)
+        self.assertEqual('API', digest_challenge.realm)
+        self.assertEqual('MD5', digest_challenge.algorithm)
+        self.assertEqual('38A924C1874E52F9A379BCA9F64D04F6', digest_challenge.opaque)
+        self.assertEqual('auth', digest_challenge.qop)
+        self.assertEqual(False, digest_challenge.stale)
+
     def test_build_digest_challenge(self):
         timestamp = 12345.01
         challenge = build_digest_challenge(timestamp, 'secret', 'myrealm', 'myopaque', False)
@@ -69,28 +85,63 @@ class PythonDigestTests(unittest.TestCase):
         self.assertEqual(12345.01, get_nonce_timestamp(challenge_parts['nonce']))
 
     def test_build_authorization_request(self):
-        header = build_authorization_request(
+        # One calling pattern
+        request_header = build_authorization_request(
             username='erik', realm='API', method='GET',
             uri='/api/accounts/account/erik/',
             nonce='1263251163.72:0D93:6c012a9bc11e535ff2cddb54663e44bc',
             opaque='D80E5E5109EB9918993B5F886D14D2E5', nonce_count=3,
             password='test', client_nonce='c316b5722463aee9')
 
-        self.assertEqual('digest ', header[0:7].lower())
+        self.assertTrue(is_digest_credential(request_header))
 
-        header_parts = parse_parts(header[7:])
-        self.assertEqual(header_parts['username'], 'erik')
-        self.assertEqual(header_parts['qop'], 'auth')
-        self.assertEqual(header_parts['algorithm'], 'MD5')
-        self.assertEqual(header_parts['uri'], '/api/accounts/account/erik/')
-        self.assertEqual(header_parts['nonce'],
+        digest_response = parse_digest_credentials(request_header)
+
+        self.assertEqual(digest_response.username, 'erik')
+        self.assertEqual(digest_response.qop, 'auth')
+        self.assertEqual(digest_response.algorithm, 'MD5')
+        self.assertEqual(digest_response.uri, '/api/accounts/account/erik/')
+        self.assertEqual(digest_response.nonce,
                          '1263251163.72:0D93:6c012a9bc11e535ff2cddb54663e44bc')
-        self.assertEqual(header_parts['opaque'], 'D80E5E5109EB9918993B5F886D14D2E5')
-        self.assertEqual(header_parts['realm'], 'API')
-        self.assertEqual(header_parts['response'], 'a8f5c1289e081a7a0f5faa91d24f3b46')
-        self.assertEqual(header_parts['nc'], '00000003')
-        self.assertEqual(header_parts['cnonce'], 'c316b5722463aee9')
+        self.assertEqual(digest_response.opaque, 'D80E5E5109EB9918993B5F886D14D2E5')
+        self.assertEqual(digest_response.realm, 'API')
+        self.assertEqual(digest_response.response, 'a8f5c1289e081a7a0f5faa91d24f3b46')
+        self.assertEqual(digest_response.nc, 3)
+        self.assertEqual(digest_response.cnonce, 'c316b5722463aee9')
         
+        # Second calling pattern
+        challenge_header = \
+            'Digest nonce="1263251163.72:0D93:6c012a9bc11e535ff2cddb54663e44bc", ' \
+            'realm="API", algorithm="MD5", opaque="D80E5E5109EB9918993B5F886D14D2E5", ' \
+            'qop="auth", stale="false"'
+
+        digest_challenge = parse_digest_challenge(challenge_header)
+        request_header = build_authorization_request(username='erik', method='GET',
+                                                     uri='/api/accounts/account/erik/',
+                                                     nonce_count=3, password='test',
+                                                     digest_challenge=digest_challenge)
+        self.assertTrue(is_digest_credential(request_header))
+
+        digest_response = parse_digest_credentials(request_header)
+
+        self.assertEqual(digest_response.nonce,
+                         '1263251163.72:0D93:6c012a9bc11e535ff2cddb54663e44bc')
+        self.assertEqual(digest_response.realm, 'API')
+        self.assertEqual(digest_response.opaque, 'D80E5E5109EB9918993B5F886D14D2E5')
+
+        # Third calling pattern
+        challenge_header = \
+            'Digest nonce="1263251163.72:0D93:6c012a9bc11e535ff2cddb54663e44bc", ' \
+            'realm="API", algorithm="MD5", opaque="D80E5E5109EB9918993B5F886D14D2E5", ' \
+            'qop="auth", stale="false"'
+
+        request_header = build_authorization_request(username='erik', method='GET',
+                                                     uri='/api/accounts/account/erik/',
+                                                     nonce_count=3, password='test',
+                                                     digest_challenge=challenge_header)
+        digest_response = parse_digest_credentials(request_header)
+        self.assertEqual(digest_response.nonce,
+                         '1263251163.72:0D93:6c012a9bc11e535ff2cddb54663e44bc')
 
     def test_calculate_request_digest(self):
         # one calling pattern

@@ -1,10 +1,13 @@
 import md5
 import random
+import types
 
 from python_digest.utils import parse_parts, format_parts
 
-_REQUIRED_PARTS = ['username', 'realm', 'nonce', 'uri', 'response', 'algorithm',
+_REQUIRED_DIGEST_RESPONSE_PARTS = ['username', 'realm', 'nonce', 'uri', 'response', 'algorithm',
                   'opaque', 'qop', 'nc', 'cnonce']
+_REQUIRED_DIGEST_CHALLENGE_PARTS = ['realm', 'nonce', 'stale', 'algorithm',
+                             'opaque', 'qop']
 
 def validate_nonce(nonce, secret):
     '''
@@ -97,22 +100,48 @@ def calculate_nonce(timestamp, secret, salt=None):
     return "%s:%s:%s" % (timestamp, salt,
                          md5.md5("%s:%s:%s" % (timestamp, salt, secret)).hexdigest())
 
-def build_authorization_request(username, realm, method, uri,
-                                nonce, opaque, nonce_count,
-                                password=None, request_digest=None, client_nonce=None):
+def build_authorization_request(username, method, uri, nonce_count, digest_challenge=None,
+                                realm=None, nonce=None, opaque=None, password=None,
+                                request_digest=None, client_nonce=None):
     '''
     Builds an authorization request that may be sent as the value of the 'Authorization'
-    header in an HTTP request. The realm, nonce, and opaque should be those supplied by the
-    server in a Digest challenge. The nonce_count should be the last used nonce_count plus one.
+    header in an HTTP request.
+
+    Either a digest_challenge object (as returned from parse_digest_challenge) or its required
+    component parameters (nonce, realm, opaque) must be provided.
+
+    The nonce_count should be the last used nonce_count plus one.
+    
     Either the password or the request_digest should be provided - if provided, the password
     will be used to generate a request digest. The client_nonce is optional - if not provided,
     a random value will be generated.
     '''
     if not client_nonce:
         client_nonce =  ''.join([random.choice('0123456789ABCDEF') for x in range(32)])
+
+    if digest_challenge and (realm or nonce or opaque):
+        raise Exception("Both digest_challenge and one or more of realm, nonce, and opaque"
+                        "were sent.")
+
+    if digest_challenge:
+        if isinstance(digest_challenge, types.StringType):
+            digest_challenge_header = digest_challenge
+            digest_challenge = parse_digest_challenge(digest_challenge_header)
+            if not digest_challenge:
+                raise Exception("The provided digest challenge header could not be parsed: %s" %
+                                digest_challenge_header)
+        realm = digest_challenge.realm
+        nonce = digest_challenge.nonce
+        opaque = digest_challenge.opaque
+    elif not (realm and nonce and opaque):
+        raise Exception("Either digest_challenge or realm, nonce, and opaque must be sent.")
+        
     if password and request_digest:
         raise Exception("Both password and calculated request_digest were sent.")
     elif not request_digest:
+        if not password:
+            raise Exception("Either password or calculated request_digest must be provided.")
+            
         partial_digest = calculate_partial_digest(username, realm, password)
         request_digest = calculate_request_digest(method, partial_digest, uri=uri, nonce=nonce,
                                                   nonce_count=nonce_count,
@@ -122,7 +151,19 @@ def build_authorization_request(username, realm, method, uri,
                                       response=request_digest, algorithm='MD5', opaque=opaque,
                                       qop='auth', nc='%08x' % nonce_count, cnonce=client_nonce)
     
+def _check_required_parts(parts, required_parts):
+    if parts == None:
+        return False
 
+    missing_parts = [part for part in required_parts if not part in parts]
+    return len(missing_parts) == 0
+
+def _build_object_from_parts(parts, names):
+    obj = type("", (), {})()
+    for part_name in names:
+        setattr(obj, part_name, parts[part_name])
+    return obj
+    
 def parse_digest_response(digest_response_string):
     '''
     Parse the parameters of a Digest response. The input is a comma separated list of
@@ -130,35 +171,17 @@ def parse_digest_response(digest_response_string):
 
     Known issue: this implementation will fail if there are commas embedded in quoted-strings.
     '''
-    # algorithm is optional - default is MD5
-    parts = {'algorithm': 'MD5'}
 
-    sent_parts = parse_parts(digest_response_string)
-    if not sent_parts:
+    parts = parse_parts(digest_response_string, defaults={'algorithm': 'MD5'})
+    if not _check_required_parts(parts, _REQUIRED_DIGEST_RESPONSE_PARTS):
         return None
 
-    parts.update(sent_parts)
-
-    # check for missing parts
-    missing_parts = [part for part in _REQUIRED_PARTS if not part in parts]
-    if missing_parts:
-        return None
-
-    # parse the nonce-count from hexadecimal into an int
     if not parts['nc'] or [c for c in parts['nc'] if not c in '0123456789abcdefABCDEF']:
         return None
-
     parts['nc'] = int(parts['nc'], 16)
 
-    # convert the dictionary into an object for convenience
-    digest_response = type("", (), {})()
-    for part_name in _REQUIRED_PARTS:
-        setattr(digest_response, part_name, parts[part_name])
-
-    # check that the algorithm and qop are supported
-    if not digest_response.algorithm == 'MD5':
-        return None
-    if not digest_response.qop == 'auth':
+    digest_response = _build_object_from_parts(parts, _REQUIRED_DIGEST_RESPONSE_PARTS)
+    if ('MD5', 'auth') != (digest_response.algorithm, digest_response.qop):
         return None
                 
     return digest_response
@@ -180,3 +203,30 @@ def parse_digest_credentials(authorization_header):
 
     return parse_digest_response(authorization_header[7:])
 
+def is_digest_challenge(authentication_header):
+    '''
+    Determines if the header value is potentially a Digest challenge sent by a server (i.e.
+    if it starts with 'Digest ' (case insensitive).
+    '''
+    return authentication_header[:7].lower() == 'digest '
+
+def parse_digest_challenge(authentication_header):
+    '''
+    Parses the value of a 'WWW-Authenticate' header. Returns an object with properties
+    corresponding to each of the recognized parameters in the header.
+    '''
+    if not is_digest_challenge(authentication_header):
+        return None
+
+    parts = parse_parts(authentication_header[7:], defaults={'algorithm': 'MD5',
+                                                             'stale': 'false'})
+    if not _check_required_parts(parts, _REQUIRED_DIGEST_CHALLENGE_PARTS):
+        return None
+
+    parts['stale'] = parts['stale'].lower() == 'true'
+
+    digest_challenge = _build_object_from_parts(parts, _REQUIRED_DIGEST_CHALLENGE_PARTS)
+    if ('MD5', 'auth') != (digest_challenge.algorithm, digest_challenge.qop):
+        return None
+
+    return digest_challenge

@@ -6,8 +6,8 @@ def parse_part_value(part_value):
     else:
         return parse_token(part_value)
 
-def parse_parts(parts_string):
-    parts = {}
+def parse_parts(parts_string, defaults={}):
+    parts = defaults.copy()
 
     for part in parts_string.split(','):
         part_components = [component.strip() for component in part.split('=',1)]
