@@ -40,6 +40,15 @@ class HttpTests(unittest.TestCase):
             self.assertFalse(parse_token(token))
 
 class PythonDigestTests(unittest.TestCase):
+    def test_validate_uri(self):
+        self.assertTrue(validate_uri('http://server:port/some/path', '/some/path'))
+        self.assertTrue(validate_uri('/some/path', '/some/path'))
+        self.assertTrue(validate_uri('http://server:port/some/path?q=v&x=y', '/some/path'))
+        self.assertFalse(validate_uri('http://server:port/some/other/path', '/some/path'))
+        self.assertFalse(validate_uri('/some/other/path', '/some/path'))
+        self.assertFalse(validate_uri('http://server:port/some/other/path?q=v&x=y',
+                                      '/some/path'))
+
     def test_nonce_functions(self):
         timestamp = 12345.01
         nonce = calculate_nonce(timestamp, 'secret')

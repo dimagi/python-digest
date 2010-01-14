@@ -1,6 +1,7 @@
 import md5
 import random
 import types
+import urlparse
 
 from python_digest.utils import parse_parts, format_parts
 
@@ -8,6 +9,11 @@ _REQUIRED_DIGEST_RESPONSE_PARTS = ['username', 'realm', 'nonce', 'uri', 'respons
                   'opaque', 'qop', 'nc', 'cnonce']
 _REQUIRED_DIGEST_CHALLENGE_PARTS = ['realm', 'nonce', 'stale', 'algorithm',
                              'opaque', 'qop']
+
+def validate_uri(digest_uri, request_path):
+    digest_url_components = urlparse.urlparse(digest_uri)
+    request_url_components = urlparse.urlparse(request_path)
+    return digest_url_components[2] == request_url_components[2]
 
 def validate_nonce(nonce, secret):
     '''
