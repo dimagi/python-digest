@@ -44,6 +44,9 @@ class PythonDigestTests(unittest.TestCase):
         self.assertTrue(validate_uri('http://server:port/some/path', '/some/path'))
         self.assertTrue(validate_uri('/some/path', '/some/path'))
         self.assertTrue(validate_uri('http://server:port/some/path?q=v&x=y', '/some/path'))
+        self.assertTrue(validate_uri('http://server:port/spacey%20path', '/spacey path'))
+        self.assertTrue(validate_uri('http://server:port/%7euser/', '/~user/'))
+        self.assertTrue(validate_uri('http://server:port/%7Euser/', '/~user/'))
         self.assertFalse(validate_uri('http://server:port/some/other/path', '/some/path'))
         self.assertFalse(validate_uri('/some/other/path', '/some/path'))
         self.assertFalse(validate_uri('http://server:port/some/other/path?q=v&x=y',
