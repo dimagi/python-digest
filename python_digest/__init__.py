@@ -1,4 +1,8 @@
-import md5
+try:
+    import hashlib as md5
+except ImportError: # Python <2.5
+    import md5
+    
 import random
 import types
 import urllib
