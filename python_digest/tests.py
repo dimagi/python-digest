@@ -1,5 +1,7 @@
 import unittest
 
+import StringIO
+
 from python_digest import *
 from python_digest.http import *
 from python_digest.utils import *
@@ -254,17 +256,23 @@ class PythonDigestTests(unittest.TestCase):
         self.assertEqual('erik', parse_digest_credentials(header_string).username)
 
 class UtilsTests(unittest.TestCase):
-    def test_parse_part_value(self):
-        test_cases = [
-            ('"hello"', 'hello'),
-            ('a"', False),
-            ('"hello\\"', False),
-            ("hello_world!", "hello_world!"),
-            ("a/b", False)
-            ]
+    def test_parse_parts_with_embedded_comma(self):
+        valid_parts = ('username="wikiphoto", realm="API", '
+                       'nonce="1268201053.67:5140:070c3f060614cbe244e1a713768e0211", '
+                       'uri="/api/for/wikiphoto/missions/missions/Oh, the Memories/", '
+                       'response="d9fb4f9882386339931cf088c74f3942", '
+                       'opaque="11861771750D1B343DF11FE4C223725A", '
+                       'algorithm="MD5", cnonce="17ec1ffae9e01d125d65accef45157fa", '
+                       'nc=00000061, qop=auth')
 
-        for test_case in test_cases:
-            self.assertEqual(test_case[1], parse_part_value(test_case[0]))
+        self.assertEquals("/api/for/wikiphoto/missions/missions/Oh, the Memories/",
+                          parse_parts(valid_parts)['uri'])
+
+    def test_parse_parts_with_escaped_quote(self):
+        valid_parts = ('username="wiki\\"photo"')
+
+        self.assertEquals("wiki\"photo",
+                          parse_parts(valid_parts)['username'])
 
     def test_parse_parts(self):
         valid_parts = ' hello = world , my = " name is sam " '
@@ -279,3 +287,184 @@ class UtilsTests(unittest.TestCase):
 
         invalid_parts = ' hello=world=goodbye , my = " name is sam " '
         self.assertEquals(None, parse_parts(invalid_parts))
+
+    def test_escaped_character_state(self):
+        for c in 'a\\\',"= _-1#':
+            io = StringIO()
+            ecs = EscapedCharacterState(io)
+            self.assertTrue(ecs.character(c))
+            self.assertEquals(c, io.getvalue())
+
+    def test_value_leading_whitespace_state_unquoted_value(self):
+        io = StringIO()
+        vlws = ValueLeadingWhitespaceState(io)
+        self.assertFalse(vlws.character(' '))
+        self.assertFalse(vlws.character('\r'))
+        self.assertFalse(vlws.character('\n'))
+        self.assertFalse(vlws.character(chr(9)))
+        self.assertFalse(vlws.character(' '))
+        self.assertFalse(vlws.character('a'))
+        self.assertTrue(vlws.character(','))
+        self.assertEquals('a', io.getvalue())
+
+    def test_value_leading_whitespace_state_quoted_value(self):
+        io = StringIO()
+        vlws = ValueLeadingWhitespaceState(io)
+        self.assertFalse(vlws.character(' '))
+        self.assertFalse(vlws.character('"'))
+        self.assertFalse(vlws.character('\\'))
+        self.assertFalse(vlws.character('"'))
+        self.assertFalse(vlws.character('"'))
+        self.assertTrue(vlws.character(','))
+        self.assertEquals('"', io.getvalue())
+        
+    def test_value_leading_whitespace_state_error(self):
+        vlws = KeyTrailingWhitespaceState()
+        self.assertFalse(vlws.character(' '))
+        self.assertRaises(ValueError, vlws.character, '<')
+
+    def test_key_trailing_whitespace_state(self):
+        ktws = KeyTrailingWhitespaceState()
+        self.assertFalse(ktws.character(' '))
+        self.assertFalse(ktws.character('\r'))
+        self.assertFalse(ktws.character('\n'))
+        self.assertFalse(ktws.character(chr(9)))
+        self.assertFalse(ktws.character(' '))
+        self.assertTrue(ktws.character('='))
+        
+    def test_key_trailing_whitespace_state_error(self):
+        for c in 'a,"':
+            ktws = KeyTrailingWhitespaceState()
+            self.assertFalse(ktws.character(' '))
+            self.assertRaises(ValueError, ktws.character, c)
+ 
+    def test_quoted_key_state(self):
+        io = StringIO()
+        qks = QuotedKeyState(io)
+        for c in '\\"this is my string,\\" he said!':
+            self.assertFalse(qks.character(c))
+        self.assertFalse(qks.character('"'))
+        self.assertFalse(qks.character(' '))
+        self.assertFalse(qks.character('\r'))
+        self.assertTrue(qks.character('='))
+        self.assertEquals('"this is my string," he said!', io.getvalue())
+
+    def test_quoted_key_state_eof_error(self):
+        io = StringIO()
+        qks = QuotedKeyState(io)
+        self.assertFalse(qks.character('a'))
+        self.assertFalse(qks.character('"'))
+        self.assertFalse(qks.character(' '))
+        self.assertFalse(qks.character('\r'))
+        self.assertRaises(ValueError, qks.close)
+
+    def test_value_trailing_whitespace_state(self):
+        vtws = ValueTrailingWhitespaceState()
+        self.assertFalse(vtws.character(' '))
+        self.assertFalse(vtws.character('\r'))
+        self.assertFalse(vtws.character('\n'))
+        self.assertFalse(vtws.character(chr(9)))
+        self.assertFalse(vtws.character(' '))
+        self.assertTrue(vtws.character(','))
+
+    def test_value_trailing_whitespace_state_eof(self):
+        vtws = ValueTrailingWhitespaceState()
+        self.assertFalse(vtws.character(' '))
+        self.assertTrue(vtws.close())
+
+    def test_value_trailing_whitespace_state_error(self):
+        for c in 'a="':
+            vtws = ValueTrailingWhitespaceState()
+            self.assertFalse(vtws.character(' '))
+            self.assertRaises(ValueError, vtws.character, c)
+
+    def test_unquoted_key_state_with_whitespace(self):
+        io = StringIO()
+        uks = UnquotedKeyState(io)
+        for c in 'hello_world':
+            self.assertFalse(uks.character(c))
+        
+        self.assertFalse(uks.character(' '))
+        self.assertFalse(uks.character('\r'))
+        self.assertTrue(uks.character('='))
+        self.assertEquals('hello_world', io.getvalue())
+
+    def test_unquoted_key_state_without_whitespace(self):
+        io = StringIO()
+        uks = UnquotedKeyState(io)
+        for c in 'hello_world':
+            self.assertFalse(uks.character(c))
+        self.assertTrue(uks.character('='))
+        self.assertEquals('hello_world', io.getvalue())
+
+
+    def test_unquoted_key_state_error(self):
+        io = StringIO()
+        uks = UnquotedKeyState(io)
+        self.assertFalse(uks.character('a'))
+        self.assertRaises(ValueError, uks.character, '<')
+
+    def test_quoted_value_state(self):
+        io = StringIO()
+        qvs = QuotedValueState(io)
+        for c in '\\"this is my string,\\" he said!':
+            self.assertFalse(qvs.character(c))
+        self.assertFalse(qvs.character('"'))
+        self.assertFalse(qvs.character(' '))
+        self.assertFalse(qvs.character('\r'))
+        self.assertTrue(qvs.character(','))
+        self.assertEquals('"this is my string," he said!', io.getvalue())
+
+    def test_quoted_value_state_eof(self):
+        io = StringIO()
+        qvs = QuotedValueState(io)
+        for c in '\\"this is my string,\\" he said!':
+            self.assertFalse(qvs.character(c))
+        self.assertFalse(qvs.character('"'))
+        self.assertTrue(qvs.close())
+        self.assertEquals('"this is my string," he said!', io.getvalue())
+
+    def test_quoted_value_state_error(self):
+        io = StringIO()
+        qvs = QuotedValueState(io)
+        for c in '\\"this is my string,\\" he said!':
+            self.assertFalse(qvs.character(c))
+        self.assertFalse(qvs.character('"'))
+        self.assertRaises(ValueError, qvs.character, '=')
+
+    def test_new_part_state(self):
+        # Try a variety of strings, both with comma and eof terminating them
+        for ending in (lambda s: s.character(','), lambda s: s.close()):
+            parts = {}
+            for s in ('hello=world', ' hi = bye ', ' "what?" = "\\"ok\\""'):
+                nps = NewPartState(parts)
+                for c in s:
+                    self.assertFalse(nps.character(c))
+                self.assertTrue(ending(nps))
+            self.assertEquals(parts, {'hello': 'world',
+                                      'hi': 'bye',
+                                      'what?': '"ok"'})
+
+    def test_new_part_state_error(self):
+        nps = NewPartState(parts={})
+        self.assertRaises(ValueError, nps.character, '<')
+
+    def test_foundation_state(self):
+        fs = FoundationState({'default': 'value', 'hello': 'bye bye'})
+        for c in '  hello=world, my=turn, yes=no , one = 1, " \\"quoted\\" " = unquoted  ':
+            self.assertFalse(fs.character(c))
+        fs.close()
+        self.assertEquals(fs.result(), {'default': 'value',
+                                        'hello': 'world',
+                                        'my': 'turn',
+                                        'yes': 'no',
+                                        'one': '1',
+                                        ' "quoted" ': 'unquoted'})
+
+    def test_foundation_state_error(self):
+        for s in ('', '  ', 'hello', 'hello=', 'hello=world,', 'hello=world, ',
+                  'hello=world, a'):
+            fs = FoundationState({'default': 'value'})
+            for c in s:
+                self.assertFalse(fs.character(c))
+            self.assertRaises(ValueError, fs.close)
