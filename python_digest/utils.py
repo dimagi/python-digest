@@ -221,14 +221,19 @@ class FoundationState(ParentState):
 def parse_parts(parts_string, defaults={}):
     
     state_machine = FoundationState(defaults)
-
+    index = 0
     try:
         for c in parts_string:
             state_machine.character(c)
+            index += 1
         state_machine.close()
         return state_machine.result()
     except ValueError, e:
-        l.exception("Failed to parse the Digest string: %r" % parts_string)
+        annotated_parts_string = "%s[%s]%s" % (parts_string[0:index],
+                                               parts_string[index],
+                                               parts_string[index+1:])
+        l.exception("Failed to parse the Digest string "
+                    "(offending character is in []): %r" % annotated_parts_string)
         return None
 
 def format_parts(**kwargs):
