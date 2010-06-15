@@ -157,6 +157,24 @@ class PythonDigestTests(unittest.TestCase):
         self.assertEqual(digest_response.nonce,
                          '1263251163.72:0D93:6c012a9bc11e535ff2cddb54663e44bc')
 
+    def test_unicode_credentials(self):
+        username = u"mickey\xe8\xe9"
+        challenge_header = \
+            'Digest nonce="1263251163.72:0D93:6c012a9bc11e535ff2cddb54663e44bc", ' \
+            'realm="API", algorithm="MD5", opaque="D80E5E5109EB9918993B5F886D14D2E5", ' \
+            'qop="auth", stale="false"'
+        request_header = build_authorization_request(
+            username=username, method='GET', uri='/api/accounts/account/erik/',
+            nonce_count=3,password=username, digest_challenge=challenge_header)
+        digest_response = parse_digest_credentials(request_header)
+        self.assertEqual(digest_response.username, 'mickey\xc3\xa8\xc3\xa9')
+
+        kd = calculate_request_digest(
+            'GET', calculate_partial_digest(username, 'API', username),
+            digest_response)
+        self.assertEquals(digest_response.response, kd)
+        
+
     def test_calculate_request_digest(self):
         # one calling pattern
         header = \

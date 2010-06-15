@@ -230,11 +230,11 @@ def parse_parts(parts_string, defaults={}):
         return state_machine.result()
     except ValueError, e:
         annotated_parts_string = "%s[%s]%s" % (parts_string[0:index],
-                                               parts_string[index],
-                                               parts_string[index+1:])
+                                               index < len(parts_string) and parts_string[index] or '',
+                                               index + 1 < len(parts_string) and parts_string[index+1:] or '')
         l.exception("Failed to parse the Digest string "
                     "(offending character is in []): %r" % annotated_parts_string)
         return None
 
 def format_parts(**kwargs):
-    return ", ".join(['%s="%s"' % (k,v) for (k,v) in kwargs.items()])
+    return ", ".join(['%s="%s"' % (k,v.encode('utf-8')) for (k,v) in kwargs.items()])
