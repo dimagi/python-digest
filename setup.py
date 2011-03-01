@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='python-digest',
-    version='1.5',
+    version='1.6',
     description=('A Python library to aid in implementing HTTP Digest Authentication.'),
     long_description=(
 """
