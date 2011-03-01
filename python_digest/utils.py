@@ -6,8 +6,19 @@ except ImportError:
 from http import parse_quoted_string, parse_token
 
 import logging
-logging.basicConfig(level=logging.DEBUG)
+
+# Make sure a NullHandler is available
+# This was added in Python 2.7/3.2
+try:
+    from logging import NullHandler
+except ImportError:
+    class NullHandler(logging.Handler):
+        def emit(self, record):
+            pass
+
 l = logging.getLogger(__name__)
+l.addHandler(NullHandler())
+l.setLevel(logging.DEBUG)
 
 _LWS=[chr(9), ' ', '\r', '\n']
 _ILLEGAL_TOKEN_CHARACTERS = (
