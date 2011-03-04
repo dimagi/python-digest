@@ -486,3 +486,6 @@ class UtilsTests(unittest.TestCase):
             for c in s:
                 self.assertFalse(fs.character(c))
             self.assertRaises(ValueError, fs.close)
+
+if __name__ == '__main__':
+    unittest.main()
