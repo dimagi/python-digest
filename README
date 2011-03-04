@@ -22,7 +22,7 @@ It may be used as follows:
 >>> digest_response = python_digest.parse_digest_credentials(http_authorization_header)
 >>> python_digest.validate_nonce(digest_response.nonce, secret)
 True
->>> expected_request_digest = python_digest.calculate_request_digest('GET', digest_response, python_digest.calculate_partial_digest('erik', 'API', 'test'))
+>>> expected_request_digest = python_digest.calculate_request_digest('GET', python_digest.calculate_partial_digest('erik', 'API', 'test'), digest_response)
 >>> expected_request_digest == digest_response.response
 True
 
