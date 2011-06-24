@@ -18,7 +18,6 @@ except ImportError:
 
 l = logging.getLogger(__name__)
 l.addHandler(NullHandler())
-l.setLevel(logging.DEBUG)
 
 _LWS=[chr(9), ' ', '\r', '\n']
 _ILLEGAL_TOKEN_CHARACTERS = (
@@ -230,7 +229,6 @@ class FoundationState(ParentState):
         return self.push_child(NewPartState(self.parts), c)
 
 def parse_parts(parts_string, defaults={}):
-    
     state_machine = FoundationState(defaults)
     index = 0
     try:
