@@ -171,7 +171,10 @@ def _check_required_parts(parts, required_parts):
 def _build_object_from_parts(parts, names):
     obj = type("", (), {})()
     for part_name in names:
-        setattr(obj, part_name, parts[part_name])
+        val = parts[part_name]
+        if isinstance(val, basestring):
+            val = unicode(val, "utf-8")
+        setattr(obj, part_name, val)
     return obj
     
 def parse_digest_response(digest_response_string):
