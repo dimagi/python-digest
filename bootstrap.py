@@ -20,6 +20,7 @@ use the -c option to specify an alternate configuration file.
 $Id$
 """
 
+from __future__ import absolute_import
 import os, shutil, sys, tempfile, urllib2
 from optparse import OptionParser
 
