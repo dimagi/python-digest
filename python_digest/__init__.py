@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 try:
     import hashlib as md5
 except ImportError: # Python <2.5
