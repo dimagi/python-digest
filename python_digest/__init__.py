@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import six
 try:
     import hashlib as md5
 except ImportError: # Python <2.5
@@ -172,7 +173,7 @@ def _build_object_from_parts(parts, names):
     obj = type("", (), {})()
     for part_name in names:
         val = parts[part_name]
-        if isinstance(val, basestring):
+        if isinstance(val, six.string_types):
             val = unicode(val, "utf-8")
         setattr(obj, part_name, val)
     return obj
