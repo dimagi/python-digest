@@ -166,7 +166,7 @@ class PythonDigestTests(unittest.TestCase):
             'qop="auth", stale="false"'
         request_header = build_authorization_request(
             username=username, method='GET', uri='/api/accounts/account/erik/',
-            nonce_count=3,password=username, digest_challenge=challenge_header)
+            nonce_count=3, password=username, digest_challenge=challenge_header)
         digest_response = parse_digest_credentials(request_header)
         self.assertEqual(digest_response.username, 'mickey\xc3\xa8\xc3\xa9')
 

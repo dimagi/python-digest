@@ -1,7 +1,7 @@
 _ILLEGAL_TOKEN_CHARACTERS = (
     [chr(n) for n in range(0-31)] + # control characters
     [chr(127)] + # DEL
-    ['(',')','<','>','@',',',';',':','\\','"','/','[',']','?','=','{','}',' '] +
+    ['(', ')', '<', '>', '@', ',', ';', ':', '\\', '"', '/', '[', ']', '?', '=', '{', '}', ' '] +
     [chr(9)]) # horizontal tab
 
 def parse_quoted_string(quoted_string):
