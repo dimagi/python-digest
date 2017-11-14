@@ -135,7 +135,7 @@ def build_authorization_request(username, method, uri, nonce_count, digest_chall
                         "were sent.")
 
     if digest_challenge:
-        if isinstance(digest_challenge, types.StringType):
+        if isinstance(digest_challenge, bytes):
             digest_challenge_header = digest_challenge
             digest_challenge = parse_digest_challenge(digest_challenge_header)
             if not digest_challenge:
