@@ -174,7 +174,7 @@ def _build_object_from_parts(parts, names):
     for part_name in names:
         val = parts[part_name]
         if isinstance(val, six.string_types):
-            val = unicode(val, "utf-8")
+            val = six.text_type(val, "utf-8")
         setattr(obj, part_name, val)
     return obj
     
