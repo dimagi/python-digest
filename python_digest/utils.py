@@ -22,7 +22,7 @@ _LWS=[chr(9), ' ', '\r', '\n']
 _ILLEGAL_TOKEN_CHARACTERS = (
     [chr(n) for n in range(0-31)] + # control characters
     [chr(127)] + # DEL
-    ['(',')','<','>','@',',',';',':','\\','"','/','[',']','?','=','{','}',' '] +
+    ['(', ')', '<', '>', '@', ',', ';', ':', '\\', '"', '/', '[', ']', '?', '=', '{', '}', ' '] +
     [chr(9)]) # horizontal tab
 
 class State(object):
@@ -245,4 +245,4 @@ def parse_parts(parts_string, defaults={}):
         return None
 
 def format_parts(**kwargs):
-    return ", ".join(['%s="%s"' % (k,v.encode('utf-8')) for (k,v) in kwargs.items()])
+    return ", ".join(['%s="%s"' % (k, v.encode('utf-8')) for (k, v) in kwargs.items()])
