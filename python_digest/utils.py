@@ -5,6 +5,7 @@ from .http import parse_quoted_string, parse_token
 import logging
 
 from six import StringIO
+from six.moves import range
 
 # Make sure a NullHandler is available
 # This was added in Python 2.7/3.2

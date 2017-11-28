@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import six
+from six.moves import range
 try:
     import hashlib as md5
 except ImportError: # Python <2.5

@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from six.moves import range
 _ILLEGAL_TOKEN_CHARACTERS = (
     [chr(n) for n in range(0-31)] + # control characters
     [chr(127)] + # DEL
