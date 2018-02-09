@@ -21,7 +21,7 @@ $Id$
 """
 
 from __future__ import absolute_import
-import os, shutil, sys, tempfile, urllib2
+import os, shutil, sys, tempfile, six.moves.urllib.request, six.moves.urllib.error, six.moves.urllib.parse
 from optparse import OptionParser
 
 tmpeggs = tempfile.mkdtemp()
@@ -63,11 +63,11 @@ try:
 except ImportError:
     ez = {}
     if USE_DISTRIBUTE:
-        exec(urllib2.urlopen('http://python-distribute.org/distribute_setup.py'
+        exec(six.moves.urllib.request.urlopen('http://python-distribute.org/distribute_setup.py'
                          ).read(), ez)
         ez['use_setuptools'](to_dir=tmpeggs, download_delay=0, no_fake=True)
     else:
-        exec(urllib2.urlopen('http://peak.telecommunity.com/dist/ez_setup.py'
+        exec(six.moves.urllib.request.urlopen('http://peak.telecommunity.com/dist/ez_setup.py'
                              ).read(), ez)
         ez['use_setuptools'](to_dir=tmpeggs, download_delay=0)
 
