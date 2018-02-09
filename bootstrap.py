@@ -21,7 +21,13 @@ $Id$
 """
 
 from __future__ import absolute_import
-import os, shutil, sys, tempfile, six.moves.urllib.request, six.moves.urllib.error, six.moves.urllib.parse
+import os
+import shutil
+import six.moves.urllib.error
+import six.moves.urllib.parse
+import six.moves.urllib.request
+import sys
+import tempfile
 from optparse import OptionParser
 
 tmpeggs = tempfile.mkdtemp()
