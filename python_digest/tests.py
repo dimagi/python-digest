@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from __future__ import unicode_literals
 import unittest
 
 import StringIO
@@ -159,7 +160,7 @@ class PythonDigestTests(unittest.TestCase):
                          '1263251163.72:0D93:6c012a9bc11e535ff2cddb54663e44bc')
 
     def test_unicode_credentials(self):
-        username = u"mickey\xe8\xe9"
+        username = "mickey\xe8\xe9"
         challenge_header = \
             'Digest nonce="1263251163.72:0D93:6c012a9bc11e535ff2cddb54663e44bc", ' \
             'realm="API", algorithm="MD5", opaque="D80E5E5109EB9918993B5F886D14D2E5", ' \
