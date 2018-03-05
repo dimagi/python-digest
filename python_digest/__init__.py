@@ -172,7 +172,7 @@ def _check_required_parts(parts, required_parts):
     return len(missing_parts) == 0
 
 def _build_object_from_parts(parts, names):
-    obj = type("", (), {})()
+    obj = type(b"", (), {})()
     for part_name in names:
         val = parts[part_name]
         if isinstance(val, six.string_types):
