@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from __future__ import unicode_literals
 from .http import parse_quoted_string, parse_token
 
 import logging
