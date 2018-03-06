@@ -59,7 +59,7 @@ def build_digest_challenge(timestamp, secret, realm, opaque, stale):
     '''
     nonce = calculate_nonce(timestamp, secret)
 
-    return 'Digest %s' % format_parts(realm=realm, qop='auth', nonce=nonce,
+    return b'Digest %s' % format_parts(realm=realm, qop='auth', nonce=nonce,
                                       opaque=opaque, algorithm='MD5',
                                       stale=stale and 'true' or 'false')
 
@@ -110,7 +110,7 @@ def calculate_nonce(timestamp, secret, salt=None):
     '''
     if not salt:
         salt = ''.join([random.choice('0123456789ABCDEF') for x in range(4)])
-    return "%s:%s:%s" % (timestamp, salt,
+    return b"%s:%s:%s" % (timestamp, salt,
                          md5.md5("%s:%s:%s" % (timestamp, salt, secret)).hexdigest())
 
 def build_authorization_request(username, method, uri, nonce_count, digest_challenge=None,
@@ -160,7 +160,7 @@ def build_authorization_request(username, method, uri, nonce_count, digest_chall
                                                   nonce_count=nonce_count,
                                                   client_nonce=client_nonce)
 
-    return 'Digest %s' % format_parts(username=username, realm=realm, nonce=nonce, uri=uri,
+    return b'Digest %s' % format_parts(username=username, realm=realm, nonce=nonce, uri=uri,
                                       response=request_digest, algorithm='MD5', opaque=opaque,
                                       qop='auth', nc='%08x' % nonce_count, cnonce=client_nonce)
     
@@ -172,10 +172,10 @@ def _check_required_parts(parts, required_parts):
     return len(missing_parts) == 0
 
 def _build_object_from_parts(parts, names):
-    obj = type("", (), {})()
+    obj = type("" if six.PY3 else b"", (), {})()
     for part_name in names:
         val = parts[part_name]
-        if isinstance(val, six.string_types):
+        if isinstance(val, six.binary_type):
             val = six.text_type(val, "utf-8")
         setattr(obj, part_name, val)
     return obj
