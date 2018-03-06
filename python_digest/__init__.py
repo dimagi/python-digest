@@ -172,7 +172,7 @@ def _check_required_parts(parts, required_parts):
     return len(missing_parts) == 0
 
 def _build_object_from_parts(parts, names):
-    obj = type(b"", (), {})()
+    obj = type("" if six.PY3 else b"", (), {})()
     for part_name in names:
         val = parts[part_name]
         if isinstance(val, six.binary_type):
