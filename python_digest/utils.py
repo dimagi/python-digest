@@ -247,4 +247,4 @@ def parse_parts(parts_string, defaults={}):
         return None
 
 def format_parts(**kwargs):
-    return ", ".join(['%s="%s"' % (k, v.encode('utf-8')) for (k, v) in kwargs.items()])
+    return b", ".join([b'%s="%s"' % (k, v.encode('utf-8')) for (k, v) in kwargs.items()])
