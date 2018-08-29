@@ -1,6 +1,9 @@
 from __future__ import absolute_import
 
 from __future__ import unicode_literals
+
+import six
+
 from .http import parse_quoted_string, parse_token
 
 import logging
@@ -247,4 +250,11 @@ def parse_parts(parts_string, defaults={}):
         return None
 
 def format_parts(**kwargs):
-    return b", ".join([b'%s="%s"' % (k, v.encode('utf-8')) for (k, v) in kwargs.items()])
+    print(kwargs.items())
+    return b", ".join([
+        b'%s="%s"' % (
+            k.encode('utf-8') if isinstance(k, six.text_type) else k,
+            v.encode('utf-8') if isinstance(v, six.text_type) else v,
+        )
+        for (k, v) in kwargs.items()
+    ])
