@@ -2,10 +2,7 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 import six
 from six.moves import range
-try:
-    import hashlib as md5
-except ImportError: # Python <2.5
-    import md5
+import hashlib as md5
     
 import random
 import types
@@ -85,9 +82,9 @@ def calculate_request_digest(method, partial_digest, digest_response=None,
     elif not (uri and nonce and (nonce_count != None) and client_nonce):
         raise Exception("Neither digest_response nor all individual parameters were sent.")
         
-    ha2 = md5.md5("%s:%s" % (method, uri)).hexdigest()
+    ha2 = md5.md5(("%s:%s" % (method, uri)).encode('utf-8')).hexdigest()
     data = "%s:%s:%s:%s:%s" % (nonce, "%08x" % nonce_count, client_nonce, 'auth', ha2)
-    kd = md5.md5("%s:%s" % (partial_digest, data)).hexdigest()
+    kd = md5.md5(("%s:%s" % (partial_digest, data)).encode('utf-8')).hexdigest()
     return kd
 
 def get_nonce_timestamp(nonce):
@@ -113,7 +110,7 @@ def calculate_nonce(timestamp, secret, salt=None):
     if not salt:
         salt = ''.join([random.choice('0123456789ABCDEF') for x in range(4)])
     return b"%s:%s:%s" % (timestamp, salt,
-                         md5.md5("%s:%s:%s" % (timestamp, salt, secret)).hexdigest())
+                         md5.md5(("%s:%s:%s" % (timestamp, salt, secret)).encode('utf-8')).hexdigest())
 
 def build_authorization_request(username, method, uri, nonce_count, digest_challenge=None,
                                 realm=None, nonce=None, opaque=None, password=None,
