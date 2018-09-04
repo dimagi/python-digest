@@ -250,7 +250,6 @@ def parse_parts(parts_string, defaults={}):
         return None
 
 def format_parts(**kwargs):
-    print(kwargs.items())
     return b", ".join([
         b'%s="%s"' % (
             k.encode('utf-8') if isinstance(k, six.text_type) else k,
