@@ -1,19 +1,28 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
+from __future__ import print_function
+
+import hashlib as md5
+import random
+
+from collections import namedtuple
+
 import six
 from six.moves import range
-import hashlib as md5
-    
-import random
-import types
 from six.moves.urllib.parse import urlparse, unquote
 
 from python_digest.utils import parse_parts, format_parts
 
-_REQUIRED_DIGEST_RESPONSE_PARTS = ['username', 'realm', 'nonce', 'uri', 'response', 'algorithm',
-                  'opaque', 'qop', 'nc', 'cnonce']
-_REQUIRED_DIGEST_CHALLENGE_PARTS = ['realm', 'nonce', 'stale', 'algorithm',
-                             'opaque', 'qop']
+_REQUIRED_DIGEST_RESPONSE_PARTS = [
+    'username', 'realm', 'nonce', 'uri', 'response', 'algorithm', 'opaque', 'qop', 'nc', 'cnonce'
+]
+DigestResponse = namedtuple(
+    'DigestResponse',
+    _REQUIRED_DIGEST_RESPONSE_PARTS
+)
+
+_REQUIRED_DIGEST_CHALLENGE_PARTS = ['realm', 'nonce', 'stale', 'algorithm', 'opaque', 'qop']
+DigestChallenge = namedtuple('DigestChallenge', _REQUIRED_DIGEST_CHALLENGE_PARTS)
 
 def validate_uri(digest_uri, request_path):
     digest_url_components = urlparse(digest_uri)
@@ -58,7 +67,7 @@ def build_digest_challenge(timestamp, secret, realm, opaque, stale):
     '''
     nonce = calculate_nonce(timestamp, secret)
 
-    return b'Digest %s' % format_parts(realm=realm, qop='auth', nonce=nonce,
+    return 'Digest %s' % format_parts(realm=realm, qop='auth', nonce=nonce,
                                       opaque=opaque, algorithm='MD5',
                                       stale=stale and 'true' or 'false')
 
@@ -109,8 +118,11 @@ def calculate_nonce(timestamp, secret, salt=None):
     '''
     if not salt:
         salt = ''.join([random.choice('0123456789ABCDEF') for x in range(4)])
-    return b"%s:%s:%s" % (timestamp, salt,
-                         md5.md5(("%s:%s:%s" % (timestamp, salt, secret)).encode('utf-8')).hexdigest())
+    return "%s:%s:%s" % (
+        timestamp,
+        salt,
+        md5.md5(("%s:%s:%s" % (timestamp, salt, secret)).encode('utf-8')).hexdigest()
+    )
 
 def build_authorization_request(username, method, uri, nonce_count, digest_challenge=None,
                                 realm=None, nonce=None, opaque=None, password=None,
@@ -136,7 +148,7 @@ def build_authorization_request(username, method, uri, nonce_count, digest_chall
                         "were sent.")
 
     if digest_challenge:
-        if isinstance(digest_challenge, bytes):
+        if isinstance(digest_challenge, six.text_type):
             digest_challenge_header = digest_challenge
             digest_challenge = parse_digest_challenge(digest_challenge_header)
             if not digest_challenge:
@@ -159,7 +171,7 @@ def build_authorization_request(username, method, uri, nonce_count, digest_chall
                                                   nonce_count=nonce_count,
                                                   client_nonce=client_nonce)
 
-    return b'Digest %s' % format_parts(username=username, realm=realm, nonce=nonce, uri=uri,
+    return 'Digest %s' % format_parts(username=username, realm=realm, nonce=nonce, uri=uri,
                                       response=request_digest, algorithm='MD5', opaque=opaque,
                                       qop='auth', nc='%08x' % nonce_count, cnonce=client_nonce)
     
@@ -170,14 +182,6 @@ def _check_required_parts(parts, required_parts):
     missing_parts = [part for part in required_parts if not part in parts]
     return len(missing_parts) == 0
 
-def _build_object_from_parts(parts, names):
-    obj = type("" if six.PY3 else b"", (), {})()
-    for part_name in names:
-        val = parts[part_name]
-        if isinstance(val, six.binary_type):
-            val = six.text_type(val, "utf-8")
-        setattr(obj, part_name, val)
-    return obj
     
 def parse_digest_response(digest_response_string):
     '''
@@ -195,7 +199,7 @@ def parse_digest_response(digest_response_string):
         return None
     parts['nc'] = int(parts['nc'], 16)
 
-    digest_response = _build_object_from_parts(parts, _REQUIRED_DIGEST_RESPONSE_PARTS)
+    digest_response = DigestResponse(**{part_name: part for part_name, part in six.iteritems(parts)})
     if ('MD5', 'auth') != (digest_response.algorithm, digest_response.qop):
         return None
                 
@@ -240,7 +244,7 @@ def parse_digest_challenge(authentication_header):
 
     parts['stale'] = parts['stale'].lower() == 'true'
 
-    digest_challenge = _build_object_from_parts(parts, _REQUIRED_DIGEST_CHALLENGE_PARTS)
+    digest_challenge = DigestChallenge(**{part_name: part for part_name, part in six.iteritems(parts)})
     if ('MD5', 'auth') != (digest_challenge.algorithm, digest_challenge.qop):
         return None
 
