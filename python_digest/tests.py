@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 import unittest
 
-import StringIO
+from io import StringIO
 
 from python_digest import *
 from python_digest.http import *
@@ -169,7 +169,7 @@ class PythonDigestTests(unittest.TestCase):
             username=username, method='GET', uri='/api/accounts/account/erik/',
             nonce_count=3, password=username, digest_challenge=challenge_header)
         digest_response = parse_digest_credentials(request_header)
-        self.assertEqual(digest_response.username, 'mickey\xc3\xa8\xc3\xa9')
+        self.assertEqual(digest_response.username, username)
 
         kd = calculate_request_digest(
             'GET', calculate_partial_digest(username, 'API', username),
