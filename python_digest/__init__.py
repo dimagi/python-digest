@@ -147,6 +147,8 @@ def build_authorization_request(username, method, uri, nonce_count, digest_chall
                         "were sent.")
 
     if digest_challenge:
+        if six.PY2 and isinstance(digest_challenge, bytes):
+            digest_challenge = digest_challenge.decode('utf-8')
         if isinstance(digest_challenge, six.text_type):
             digest_challenge_header = digest_challenge
             digest_challenge = parse_digest_challenge(digest_challenge_header)
