@@ -200,7 +200,10 @@ def parse_digest_response(digest_response_string):
         return None
     parts['nc'] = int(parts['nc'], 16)
 
-    digest_response = DigestResponse(**{part_name: part for part_name, part in six.iteritems(parts)})
+    digest_response = DigestResponse(**{
+        part_name: part for part_name, part in six.iteritems(parts)
+        if part_name in _REQUIRED_DIGEST_RESPONSE_PARTS
+    })
     if ('MD5', 'auth') != (digest_response.algorithm, digest_response.qop):
         return None
                 
@@ -245,7 +248,10 @@ def parse_digest_challenge(authentication_header):
 
     parts['stale'] = parts['stale'].lower() == 'true'
 
-    digest_challenge = DigestChallenge(**{part_name: part for part_name, part in six.iteritems(parts)})
+    digest_challenge = DigestChallenge(**{
+        part_name: part for part_name, part in six.iteritems(parts)
+        if part_name in _REQUIRED_DIGEST_CHALLENGE_PARTS
+    })
     if ('MD5', 'auth') != (digest_challenge.algorithm, digest_challenge.qop):
         return None
 
