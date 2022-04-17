@@ -174,7 +174,7 @@ class PythonDigestTests(unittest.TestCase):
         kd = calculate_request_digest(
             'GET', calculate_partial_digest(username, 'API', username),
             digest_response)
-        self.assertEquals(digest_response.response, kd)
+        self.assertEqual(digest_response.response, kd)
         
 
     def test_calculate_request_digest(self):
@@ -285,35 +285,35 @@ class UtilsTests(unittest.TestCase):
                        'algorithm="MD5", cnonce="17ec1ffae9e01d125d65accef45157fa", '
                        'nc=00000061, qop=auth')
 
-        self.assertEquals("/api/for/wikiphoto/missions/missions/Oh, the Memories/",
+        self.assertEqual("/api/for/wikiphoto/missions/missions/Oh, the Memories/",
                           parse_parts(valid_parts)['uri'])
 
     def test_parse_parts_with_escaped_quote(self):
         valid_parts = ('username="wiki\\"photo"')
 
-        self.assertEquals("wiki\"photo",
+        self.assertEqual("wiki\"photo",
                           parse_parts(valid_parts)['username'])
 
     def test_parse_parts(self):
         valid_parts = ' hello = world , my = " name is sam " '
 
-        self.assertEquals({'hello': 'world', 'my': " name is sam "}, parse_parts(valid_parts))
+        self.assertEqual({'hello': 'world', 'my': " name is sam "}, parse_parts(valid_parts))
 
         invalid_parts = ' hello world , my = " name is sam " '
-        self.assertEquals(None, parse_parts(invalid_parts))
+        self.assertEqual(None, parse_parts(invalid_parts))
 
         # known issue: ',' or '=' could appear in a quoted-string and would be interpreted as
         # ending the part
 
         invalid_parts = ' hello=world=goodbye , my = " name is sam " '
-        self.assertEquals(None, parse_parts(invalid_parts))
+        self.assertEqual(None, parse_parts(invalid_parts))
 
     def test_escaped_character_state(self):
         for c in 'a\\\',"= _-1#':
             io = StringIO()
             ecs = EscapedCharacterState(io)
             self.assertTrue(ecs.character(c))
-            self.assertEquals(c, io.getvalue())
+            self.assertEqual(c, io.getvalue())
 
     def test_value_leading_whitespace_state_unquoted_value(self):
         io = StringIO()
@@ -325,7 +325,7 @@ class UtilsTests(unittest.TestCase):
         self.assertFalse(vlws.character(' '))
         self.assertFalse(vlws.character('a'))
         self.assertTrue(vlws.character(','))
-        self.assertEquals('a', io.getvalue())
+        self.assertEqual('a', io.getvalue())
 
     def test_value_leading_whitespace_state_quoted_value(self):
         io = StringIO()
@@ -336,7 +336,7 @@ class UtilsTests(unittest.TestCase):
         self.assertFalse(vlws.character('"'))
         self.assertFalse(vlws.character('"'))
         self.assertTrue(vlws.character(','))
-        self.assertEquals('"', io.getvalue())
+        self.assertEqual('"', io.getvalue())
         
     def test_value_leading_whitespace_state_error(self):
         vlws = KeyTrailingWhitespaceState()
@@ -367,7 +367,7 @@ class UtilsTests(unittest.TestCase):
         self.assertFalse(qks.character(' '))
         self.assertFalse(qks.character('\r'))
         self.assertTrue(qks.character('='))
-        self.assertEquals('"this is my string," he said!', io.getvalue())
+        self.assertEqual('"this is my string," he said!', io.getvalue())
 
     def test_quoted_key_state_eof_error(self):
         io = StringIO()
@@ -407,7 +407,7 @@ class UtilsTests(unittest.TestCase):
         self.assertFalse(uks.character(' '))
         self.assertFalse(uks.character('\r'))
         self.assertTrue(uks.character('='))
-        self.assertEquals('hello_world', io.getvalue())
+        self.assertEqual('hello_world', io.getvalue())
 
     def test_unquoted_key_state_without_whitespace(self):
         io = StringIO()
@@ -415,7 +415,7 @@ class UtilsTests(unittest.TestCase):
         for c in 'hello_world':
             self.assertFalse(uks.character(c))
         self.assertTrue(uks.character('='))
-        self.assertEquals('hello_world', io.getvalue())
+        self.assertEqual('hello_world', io.getvalue())
 
 
     def test_unquoted_key_state_error(self):
@@ -433,7 +433,7 @@ class UtilsTests(unittest.TestCase):
         self.assertFalse(qvs.character(' '))
         self.assertFalse(qvs.character('\r'))
         self.assertTrue(qvs.character(','))
-        self.assertEquals('"this is my string," he said!', io.getvalue())
+        self.assertEqual('"this is my string," he said!', io.getvalue())
 
     def test_quoted_value_state_eof(self):
         io = StringIO()
@@ -442,7 +442,7 @@ class UtilsTests(unittest.TestCase):
             self.assertFalse(qvs.character(c))
         self.assertFalse(qvs.character('"'))
         self.assertTrue(qvs.close())
-        self.assertEquals('"this is my string," he said!', io.getvalue())
+        self.assertEqual('"this is my string," he said!', io.getvalue())
 
     def test_quoted_value_state_error(self):
         io = StringIO()
@@ -461,7 +461,7 @@ class UtilsTests(unittest.TestCase):
                 for c in s:
                     self.assertFalse(nps.character(c))
                 self.assertTrue(ending(nps))
-            self.assertEquals(parts, {'hello': 'world',
+            self.assertEqual(parts, {'hello': 'world',
                                       'hi': 'bye',
                                       'what?': '"ok"'})
 
@@ -474,7 +474,7 @@ class UtilsTests(unittest.TestCase):
         for c in '  hello=world, my=turn, yes=no , one = 1, " \\"quoted\\" " = unquoted  ':
             self.assertFalse(fs.character(c))
         fs.close()
-        self.assertEquals(fs.result(), {'default': 'value',
+        self.assertEqual(fs.result(), {'default': 'value',
                                         'hello': 'world',
                                         'my': 'turn',
                                         'yes': 'no',
