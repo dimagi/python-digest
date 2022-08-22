@@ -23,6 +23,10 @@ DigestResponse = namedtuple(
 _REQUIRED_DIGEST_CHALLENGE_PARTS = ['realm', 'nonce', 'stale', 'algorithm', 'opaque', 'qop']
 DigestChallenge = namedtuple('DigestChallenge', _REQUIRED_DIGEST_CHALLENGE_PARTS)
 
+_AVAILABLE_HASH_FUNCS = ['MD5', 'SHA-256', 'SHA-512']
+if 'sha512_256' in hashlib.algorithms_available:
+    _AVAILABLE_HASH_FUNCS.append('SHA-512-256')
+
 def validate_uri(digest_uri, request_path):
     digest_url_components = urlparse(digest_uri)
     return unquote(digest_url_components[2]) == request_path
@@ -30,6 +34,12 @@ def validate_uri(digest_uri, request_path):
 def get_hash_func(algorithm):
     if algorithm == 'SHA-256':
         return hashlib.sha256
+    elif algorithm == 'SHA-512-256':
+        def hash_wrapper(data):
+            hash_obj = hashlib.new('sha512_256')
+            hash_obj.update(data)
+            return hash_obj
+        return hash_wrapper
     elif algorithm == 'SHA-512':
         return hashlib.sha512
     # default to 'MD5'
@@ -219,7 +229,7 @@ def parse_digest_response(digest_response_string):
         part_name: part for part_name, part in six.iteritems(parts)
         if part_name in _REQUIRED_DIGEST_RESPONSE_PARTS
     })
-    if digest_response.algorithm not in ('MD5', 'SHA-256', 'SHA-512'):
+    if digest_response.algorithm not in _AVAILABLE_HASH_FUNCS:
         return None
     if 'auth' != digest_response.qop:
         return None
@@ -269,7 +279,7 @@ def parse_digest_challenge(authentication_header):
         part_name: part for part_name, part in six.iteritems(parts)
         if part_name in _REQUIRED_DIGEST_CHALLENGE_PARTS
     })
-    if digest_challenge.algorithm not in ('MD5', 'SHA-256', 'SHA-512'):
+    if digest_challenge.algorithm not in _AVAILABLE_HASH_FUNCS:
         return None
     if 'auth' != digest_challenge.qop:
         return None
