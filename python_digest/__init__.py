@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-import hashlib as md5
+import hashlib
 import random
 
 from collections import namedtuple
@@ -23,9 +23,27 @@ DigestResponse = namedtuple(
 _REQUIRED_DIGEST_CHALLENGE_PARTS = ['realm', 'nonce', 'stale', 'algorithm', 'opaque', 'qop']
 DigestChallenge = namedtuple('DigestChallenge', _REQUIRED_DIGEST_CHALLENGE_PARTS)
 
+_AVAILABLE_HASH_FUNCS = ['MD5', 'SHA-256', 'SHA-512']
+if 'sha512_256' in hashlib.algorithms_available:
+    _AVAILABLE_HASH_FUNCS.append('SHA-512-256')
+
 def validate_uri(digest_uri, request_path):
     digest_url_components = urlparse(digest_uri)
     return unquote(digest_url_components[2]) == request_path
+
+def get_hash_func(algorithm):
+    if algorithm == 'SHA-256':
+        return hashlib.sha256
+    elif algorithm == 'SHA-512-256':
+        def hash_wrapper(data):
+            hash_obj = hashlib.new('sha512_256')
+            hash_obj.update(data)
+            return hash_obj
+        return hash_wrapper
+    elif algorithm == 'SHA-512':
+        return hashlib.sha512
+    # default to 'MD5'
+    return hashlib.md5
 
 def validate_nonce(nonce, secret):
     '''
@@ -45,16 +63,17 @@ def validate_nonce(nonce, secret):
 
     return True
 
-def calculate_partial_digest(username, realm, password):
+def calculate_partial_digest(username, realm, password, algorithm='MD5'):
     '''
     Calculate a partial digest that may be stored and used to authenticate future
     HTTP Digest sessions.
     '''
     if isinstance(realm, six.text_type):
         realm = realm.encode('utf-8')
-    return md5.md5(b"%s:%s:%s" % (username.encode('utf-8'), realm, password.encode('utf-8'))).hexdigest()
+    hash_func = get_hash_func(algorithm)
+    return hash_func(b"%s:%s:%s" % (username.encode('utf-8'), realm, password.encode('utf-8'))).hexdigest()
 
-def build_digest_challenge(timestamp, secret, realm, opaque, stale):
+def build_digest_challenge(timestamp, secret, realm, opaque, stale, algorithm='MD5'):
     '''
     Builds a Digest challenge that may be sent as the value of the 'WWW-Authenticate' header
     in a 401 or 403 response.
@@ -67,11 +86,11 @@ def build_digest_challenge(timestamp, secret, realm, opaque, stale):
     nonce = calculate_nonce(timestamp, secret)
 
     return 'Digest %s' % format_parts(realm=realm, qop='auth', nonce=nonce,
-                                      opaque=opaque, algorithm='MD5',
+                                      opaque=opaque, algorithm=algorithm,
                                       stale=stale and 'true' or 'false')
 
 def calculate_request_digest(method, partial_digest, digest_response=None,
-                             uri=None, nonce=None, nonce_count=None, client_nonce=None):
+                             uri=None, nonce=None, nonce_count=None, client_nonce=None, algorithm=None):
     '''
     Calculates a value for the 'response' value of the client authentication request.
     Requires the 'partial_digest' calculated from the realm, username, and password.
@@ -80,19 +99,22 @@ def calculate_request_digest(method, partial_digest, digest_response=None,
     or pass the individual parameters (i.e. to generate an authentication request).
     '''
     if digest_response:
-        if uri or nonce or nonce_count or client_nonce:
+        if uri or nonce or nonce_count or client_nonce or algorithm:
             raise Exception("Both digest_response and one or more "
                             "individual parameters were sent.")
         uri = digest_response.uri
         nonce = digest_response.nonce
         nonce_count = digest_response.nc
         client_nonce=digest_response.cnonce
+        algorithm = digest_response.algorithm
     elif not (uri and nonce and (nonce_count != None) and client_nonce):
         raise Exception("Neither digest_response nor all individual parameters were sent.")
+    algorithm = algorithm or 'MD5'
         
-    ha2 = md5.md5(("%s:%s" % (method, uri)).encode('utf-8')).hexdigest()
+    hash_func = get_hash_func(algorithm)
+    ha2 = hash_func(("%s:%s" % (method, uri)).encode('utf-8')).hexdigest()
     data = "%s:%s:%s:%s:%s" % (nonce, "%08x" % nonce_count, client_nonce, 'auth', ha2)
-    kd = md5.md5(("%s:%s" % (partial_digest, data)).encode('utf-8')).hexdigest()
+    kd = hash_func(("%s:%s" % (partial_digest, data)).encode('utf-8')).hexdigest()
     return kd
 
 def get_nonce_timestamp(nonce):
@@ -120,12 +142,12 @@ def calculate_nonce(timestamp, secret, salt=None):
     return "%s:%s:%s" % (
         timestamp,
         salt,
-        md5.md5(("%s:%s:%s" % (timestamp, salt, secret)).encode('utf-8')).hexdigest()
+        hashlib.md5(("%s:%s:%s" % (timestamp, salt, secret)).encode('utf-8')).hexdigest()
     )
 
 def build_authorization_request(username, method, uri, nonce_count, digest_challenge=None,
                                 realm=None, nonce=None, opaque=None, password=None,
-                                request_digest=None, client_nonce=None):
+                                request_digest=None, client_nonce=None, algorithm=None):
     '''
     Builds an authorization request that may be sent as the value of the 'Authorization'
     header in an HTTP request.
@@ -142,8 +164,8 @@ def build_authorization_request(username, method, uri, nonce_count, digest_chall
     if not client_nonce:
         client_nonce =  ''.join([random.choice('0123456789ABCDEF') for x in range(32)])
 
-    if digest_challenge and (realm or nonce or opaque):
-        raise Exception("Both digest_challenge and one or more of realm, nonce, and opaque"
+    if digest_challenge and (realm or nonce or opaque or algorithm):
+        raise Exception("Both digest_challenge and one or more of realm, nonce, opaque and algorithm"
                         "were sent.")
 
     if digest_challenge:
@@ -158,22 +180,25 @@ def build_authorization_request(username, method, uri, nonce_count, digest_chall
         realm = digest_challenge.realm
         nonce = digest_challenge.nonce
         opaque = digest_challenge.opaque
+        algorithm = digest_challenge.algorithm
     elif not (realm and nonce and opaque):
         raise Exception("Either digest_challenge or realm, nonce, and opaque must be sent.")
         
+    algorithm = algorithm or 'MD5'
     if password and request_digest:
         raise Exception("Both password and calculated request_digest were sent.")
     elif not request_digest:
         if not password:
             raise Exception("Either password or calculated request_digest must be provided.")
             
-        partial_digest = calculate_partial_digest(username, realm, password)
+        partial_digest = calculate_partial_digest(username, realm, password, algorithm)
         request_digest = calculate_request_digest(method, partial_digest, uri=uri, nonce=nonce,
                                                   nonce_count=nonce_count,
-                                                  client_nonce=client_nonce)
+                                                  client_nonce=client_nonce,
+                                                  algorithm=algorithm)
 
     return 'Digest %s' % format_parts(username=username, realm=realm, nonce=nonce, uri=uri,
-                                      response=request_digest, algorithm='MD5', opaque=opaque,
+                                      response=request_digest, algorithm=algorithm, opaque=opaque,
                                       qop='auth', nc='%08x' % nonce_count, cnonce=client_nonce)
     
 def _check_required_parts(parts, required_parts):
@@ -204,7 +229,9 @@ def parse_digest_response(digest_response_string):
         part_name: part for part_name, part in six.iteritems(parts)
         if part_name in _REQUIRED_DIGEST_RESPONSE_PARTS
     })
-    if ('MD5', 'auth') != (digest_response.algorithm, digest_response.qop):
+    if digest_response.algorithm not in _AVAILABLE_HASH_FUNCS:
+        return None
+    if 'auth' != digest_response.qop:
         return None
                 
     return digest_response
@@ -252,7 +279,9 @@ def parse_digest_challenge(authentication_header):
         part_name: part for part_name, part in six.iteritems(parts)
         if part_name in _REQUIRED_DIGEST_CHALLENGE_PARTS
     })
-    if ('MD5', 'auth') != (digest_challenge.algorithm, digest_challenge.qop):
+    if digest_challenge.algorithm not in _AVAILABLE_HASH_FUNCS:
+        return None
+    if 'auth' != digest_challenge.qop:
         return None
 
     return digest_challenge
